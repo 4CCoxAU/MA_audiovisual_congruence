@@ -8,13 +8,25 @@
 #for one-sample t:
   #Cohen's d = t/Sqrt(n)
 
-library(tidyverse)
-library(dplyr)
+library('tidyverse')
+library('dplyr')
 
+#import data
 MA_data <- read.csv('/Users/au620441/Documents/GitHub/MyGitRepoCCox1/MA_audiovisual_congruence/MA_audiovisual_congruence/MA_Data_Audiovisual_Congruence3.csv')
-#use t-values to calculate d:
 MA_data <- as_tibble(MA_data)
-MA_data %>%
+
+#use t-values to calculate d:
+MA_data <- MA_data %>%
   mutate(MA_data, cohen_d = t / sqrt(n_1)) %>%
-  select(t, cohen_d, everything()) %>%
-  head
+  relocate(cohen_d, .after = t)
+
+#calculate average SD for studies
+MA_data %>%
+  
+
+
+
+
+
+
+
