@@ -20,13 +20,15 @@ MA_data <- MA_data %>%
   mutate(MA_data, cohen_d = t / sqrt(n_1)) %>%
   relocate(cohen_d, .after = t)
 
-#calculate average SD for studies
+#calculate average SD_1 to use for missing values:
 MA_data %>%
-  
+  filter(SD_1 < 1) %>%
+  summarise(mean(SD_1,na.rm=TRUE))
 
-
-
-
-
+#calculate average SD_2 (baseline condition) to use for missing values:
+MA_data %>%
+  filter(SD_2 < 1) %>%
+  summarise(mean(SD_2,na.rm=TRUE))
+    
 
 
