@@ -1,38 +1,59 @@
-#Main q: are children regardless of anything sensitive to congruent audio-visual 
-#information? How big is the effect? Publication bias, etc.
-
-#SD = squareroot(N) * (upperCI - lowerCI / 3.92), i.e 2 x 1.96 standard errors wide.
-#SE = SD / squareroot(n) ; SD = SE * squareroot(n)
-
-#convert t-statistic to effect size:
-#for one-sample t:
-  #Cohen's d = t/Sqrt(n)
-
 library('tidyverse')
 library('dplyr')
+library('moments')
+library('car')
+library('metafor')
+library('esc')
+library('ggplot2')
+library('ggridges')
+library('brms')
 
-#import data
-MA_data <- read.csv('/Users/au620441/Documents/GitHub/MyGitRepoCCox1/MA_audiovisual_congruence/MA_audiovisual_congruence/MA_Data_Audiovisual_Congruence6.csv')
+#import data:
+MA_data <- read.csv('/Users/au620441/Documents/GitHub/MyGitRepoCCox1/MA_audiovisual_congruence/MA_audiovisual_congruence/MA_Data_Audiovisual_Congruence_final_subset_2.csv')
 MA_data <- as_tibble(MA_data)
 
-#use mean and sd to calculate d:
-MA_data <- MA_data %>%
-  #calculate cohen's d with mean + sds:
-  mutate(MA_data, cohen_d_mean_sd = (x_1-x_2) / SD_1) %>%
-  #calculate cohen's d with t values:
-  mutate(MA_data, cohen_d_t = t / sqrt(n_1)) %>%
-  #merge the two above columns and include d, so there are no missing values:
-  mutate(MA_data, cohen_d_final = coalesce(cohen_d_mean_sd,cohen_d_t, d)) %>%
-  #position the columns for comparison:
-  relocate(cohen_d_mean_sd, .before = study_ID) %>%
-  relocate(cohen_d_t, .after = cohen_d_mean_sd) %>%
-  relocate(cohen_d_final, .after = cohen_d_t)
+#specifications of priors for model:
+priors <- c(prior(normal(0,1), class = Intercept),
+            prior(cauchy(0,0.5), class = sd))
 
-#code for meta-analysis:
-library(metafor)
+#model with fixed and random effects:
+m.brm <- brm(hedge_g|se(se_hedge_g) ~ 1 + mean_age_1 + test_lang + (1|study_ID),
+             data = MA_data,
+             prior = priors,
+             iter = 10000, 
+             warmup = 2000)
+
+#checks & outcomes:
+pp_check(m.brm)
+mcmc_plot(m.brm, type='hist')
+summary(m.brm)
+ranef(m.brm)
+
+#plot posterior samples for effect size:
+post.samples <- posterior_samples(m.brm, c("^b", "^sd"))
+names(post.samples) <- c("smd", "tau")
+
+ggplot(aes(x = smd), data = post.samples) +
+  geom_density(fill = "lightblue", color = "lightblue", alpha = 0.7) +
+  geom_point(y = 0, x = mean(post.samples$smd)) +
+  labs(x = expression(italic(SMD)),
+       y = element_blank()) +
+  theme_minimal()
+
+#probability that effect size is under 0.3:
+smd.ecdf <- ecdf(post.samples$smd)
+smd.ecdf(0.3)
 
 
-
-
+#use esc to create forest plot for random effects:
+full.model <- rma.mv(hedge_g, 
+                     se_hedge_g,
+                     random = ~ 1 | study_ID, 
+                     tdist = TRUE, 
+                     data = MA_data,
+                     method = "REML")
+summary(full.model)
+forest(full.model)
+funnel(full.model)
 
 
