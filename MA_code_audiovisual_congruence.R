@@ -88,6 +88,41 @@ brm.student_baseline <-
       max_treedepth = 20 ))
 
 pp_check(brm.student_baseline)
+
+# Check posterior update (were the priors ok?)
+Posterior <- posterior_samples(brm.student_baseline, pars = c(
+  "prior_Intercept",
+  "b_Intercept",
+  "prior_sd_study_ID",
+  "sd_study_ID__Intercept",
+  "prior_sd_study_ID:expt_condition",
+  "sd_study_ID:expt_condition__Intercept",
+  "sigma",
+  "prior_nu",
+  "nu"
+))
+
+ggplot(Posterior) +
+  geom_density(aes(prior_Intercept), fill="blue", color="blue",alpha=0.3) +
+  geom_density(aes(b_Intercept), fill="red", color="red",alpha=0.3) + 
+  theme_classic()
+
+ggplot(Posterior) +
+  geom_density(aes(prior_nu), fill="blue", color="blue",alpha=0.3) +
+  geom_density(aes(nu), fill="red", color="red",alpha=0.3) + 
+  theme_classic()
+
+ggplot(Posterior) +
+  geom_density(aes(`prior_sd_study_ID:expt_condition`), fill="blue", color="blue",alpha=0.3) +
+  geom_density(aes(`sd_study_ID:expt_condition__Intercept`), fill="red", color="red",alpha=0.3) + 
+  theme_classic()
+
+ggplot(Posterior) +
+  geom_density(aes(`prior_sd_study_ID`), fill="blue", color="blue",alpha=0.3) +
+  geom_density(aes(`sd_study_ID__Intercept`), fill="red", color="red",alpha=0.3) + 
+  theme_classic()
+
+
 summary(brm.student_baseline)
 
 #Model 2:
