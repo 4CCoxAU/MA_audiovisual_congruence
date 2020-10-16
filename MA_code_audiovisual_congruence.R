@@ -58,13 +58,14 @@ priors1 <- c(prior(normal(0, 0.5), class = Intercept),
              prior(normal(0, 0.2), class = sd),
              prior(gamma(2, 0.1), class = nu))
 
-brm.student_baseline <- 
+brm.student_baseline_prior <- 
   brm(
     baseline_f,
     data = subset(MA_data, !is.na(hedge_g)),
     family = student,
     prior = priors1,
     sample_prior = "only",
+    file = "brm.student_baseline_prior",
     iter = 20000,
     warmup = 2000,
     cores = 2,
@@ -78,6 +79,7 @@ brm.student_baseline <-
     data = MA_data_imp, 
     family = student,
     prior = priors1,
+    file = "brm.student_baseline",
     sample_prior = T,
     iter = 20000, 
     warmup = 2000,
@@ -127,19 +129,38 @@ summary(brm.student_baseline)
 
 #Model 2:
 priors2 <- c(prior(normal(0, 0.5), class = Intercept),
-             prior(normal(0, 0.5), class = b),
+             prior(normal(0, 0.2), class = b),
+             prior(normal(0, 0.2), class = sd),
              prior(gamma(2, 0.1), class = nu))
 brm.student_age <- 
   brm_multiple(data = MA_data_imp, family = student,
                hedge_g|se(se_hedge_g) ~ 1 + mean_age_1 + (1|study_ID/expt_condition),
                prior = priors2,
+               sample_prior = T,
+               file = "brm.student_age",
                iter = 20000, 
                warmup = 2000,
-               cores=4,
+               chains = 2,
+               cores = 2,
                control = list(adapt_delta = 0.99))
 pp_check(brm.student_age)
 plot(conditional_effects(brm.student_age), points = TRUE)
 summary(brm.student_age)
+
+brm.student_age_mo <-
+  brm_multiple(data = MA_data_imp, family = student,
+               hedge_g|se(se_hedge_g) ~ 1 + mo(as.ordered(mean_age_1)) + (1|study_ID/expt_condition),
+               prior = priors2,
+               sample_prior = T,
+               file = "brm.student_age_mo",
+               iter = 20000,
+               warmup = 2000,
+               chains = 2,
+               cores = 2,
+               control = list(adapt_delta = 0.99))
+
+brm.student_age <- add_criterion(brm.student_age, criterion = "loo")
+brm.student_age_mo <- add_criterion(brm.student_age_mo, criterion = "loo")
 
 #Model 3:
 brm.student_lang <- 
@@ -148,6 +169,7 @@ brm.student_lang <-
                prior = priors2,
                iter = 20000, 
                warmup = 2000,
+               file = "brm.student_age_lang",
                cores=4,
                control = list(adapt_delta = 0.99))
 pp_check(brm.student_lang)
@@ -161,6 +183,7 @@ brm.student_stimuli <-
                prior = priors2,
                iter = 20000, 
                warmup = 2000,
+               file = "brm.student_age_stimuli",
                cores=4,
                control = list(adapt_delta = 0.99))
 pp_check(brm.student_stimuli)
@@ -174,6 +197,7 @@ brm.student_interaction <-
                prior = priors2,
                iter = 20000, 
                warmup = 2000,
+               file = "brm.student_age_interaction",
                cores=4,
                control = list(adapt_delta = 0.99))
 pp_check(brm.student_interaction)
@@ -189,11 +213,11 @@ plot(conditional_effects(brm.student_interaction,
                          spaghetti = T, nsamples = 300),points = T, point_args = c(alpha = 0.9, size = 2), mean = F)
 
 #Check fits and model comparison:
-brm.student_baseline <- add_ic(brm.student_baseline, ic="loo")
-brm.student_age <- add_ic(brm.student_age, ic="loo")
-brm.student_lang <- add_ic(brm.student_lang, ic="loo")
-brm.student_stimuli <- add_ic(brm.student_stimuli, ic="loo")
-brm.student_interaction <- add_ic(brm.student_interaction, ic="loo")
+brm.student_baseline <- add_criterion(brm.student_baseline, criterion="loo")
+brm.student_age <- add_criterion(brm.student_age, criterion="loo")
+brm.student_lang <- add_criterion(brm.student_lang, criterion="loo")
+brm.student_stimuli <- add_criterion(brm.student_stimuli, criterion="loo")
+brm.student_interaction <- add_criterion(brm.student_interaction, criterion="loo")
 
 loo_model2 <- loo(brm.student_lang, moment_match = T)
 plot(loo_model2, label_points = T)
@@ -203,13 +227,6 @@ loo_model_weights(brm.student_baseline, brm.student_age)
 loo_model_weights(brm.student_baseline, brm.student_lang)
 loo_model_weights(brm.student_baseline, brm.student_stimuli)
 loo_model_weights(brm.student_baseline, brm.student_interaction)
-
-#save models:
-saveRDS(brm.student_baseline, "brm.student_baseline.rds")
-saveRDS(brm.student_age, "brm.student_age.rds")
-saveRDS(brm.student_lang, "brm.student_lang.rds")
-saveRDS(brm.student_stimuli, "brm.student_stimuli.rds")
-saveRDS(brm.student_interaction, "brm.student_interaction.rds")
 
 #Create forest plot:
 forest <- forest(
