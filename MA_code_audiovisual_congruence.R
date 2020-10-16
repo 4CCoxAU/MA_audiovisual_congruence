@@ -1,21 +1,25 @@
-library(tidyverse)
-library(dplyr)
-library(moments)
-library(metafor)
-library(ggplot2)
-library(ggridges)
-library(brms)
-library(metaviz)
-library(mice)
-library(lme4)
-library(pwr)
-library(brmstools)
-library(PublicationBias)
-library(loo)
-library(rstan)
+pacman::p_load(
+  #general
+  tidyverse,
+  here,
+  dplyr,
+  moments,
+  #metaanalysis
+  metafor,
+  metaviz,
+  PublicationBias,
+  #visualization
+  ggplot2,
+  ggridges,
+  #modelfitting
+  brms,
+  #brmstools,
+  lme4,
+  mice,
+  pwr)
 
 #import data:
-MA_data <- read.csv('/Users/au620441/Documents/GitHub/MyGitRepoCCox1/MA_audiovisual_congruence/MA_audiovisual_congruence/Final_Data/Redo_Analysis_12-10/hedge_es_final_calculation.csv')
+MA_data <- read.csv(here("hedge_es_final_calculation.csv"))
 MA_data <- as_tibble(MA_data)
 
 #Calculations for missing data:
@@ -24,7 +28,12 @@ MA_data <- as_tibble(MA_data)
 md.pattern(MA_data)
 
 #first mice is just to get the parameters, so these can be restricted to positive values:
-MA_data_imp <- mice(MA_data,m=1,maxit=25,meth='norm',seed=7, print=F) #norm is Bayesian linear regression.
+MA_data_imp <- mice(MA_data,
+                    m = 1,
+                    maxit = 25,
+                    meth = 'norm',
+                    seed = 7, 
+                    print = F) #norm is Bayesian linear regression.
 post <- MA_data_imp$post
 meth <- MA_data_imp$meth
 post["se_hedge_g"] <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(0.1445317, 1))"
@@ -39,16 +48,45 @@ densityplot(MA_data_imp)
 #Bayesian hierarchical model of effect size, using imputed dataset:
 
 #Model 1:
+baseline_f <- bf(hedge_g | se(se_hedge_g) ~ 1 + (1 | study_ID/expt_condition))
+
+get_prior(baseline_f,
+          data = MA_data, 
+          family = student)
+
 priors1 <- c(prior(normal(0, 0.5), class = Intercept),
+             prior(normal(0, 0.2), class = sd),
              prior(gamma(2, 0.1), class = nu))
+
 brm.student_baseline <- 
-  brm_multiple(data = MA_data_imp, family = student,
-               hedge_g|se(se_hedge_g) ~ 1 + (1|study_ID/expt_condition),
-               prior = priors1,
-               iter = 20000, 
-               warmup = 2000,
-               cores=4,
-               control = list(adapt_delta = 0.99))
+  brm(
+    baseline_f,
+    data = subset(MA_data, !is.na(hedge_g)),
+    family = student,
+    prior = priors1,
+    sample_prior = "only",
+    iter = 20000,
+    warmup = 2000,
+    cores = 2,
+    chains = 2,
+    control = list(adapt_delta = 0.99,
+                   max_treedepth = 20))
+pp_check(brm.student_baseline)
+brm.student_baseline <- 
+  brm_multiple(
+    hedge_g | se(se_hedge_g) ~ 1 + (1 | study_ID/expt_condition),
+    data = MA_data_imp, 
+    family = student,
+    prior = priors1,
+    sample_prior = T,
+    iter = 20000, 
+    warmup = 2000,
+    cores = 2,
+    chains = 2,
+    control = list(
+      adapt_delta = 0.99,
+      max_treedepth = 20 ))
+
 pp_check(brm.student_baseline)
 summary(brm.student_baseline)
 
