@@ -13,7 +13,7 @@ pacman::p_load(
   ggridges,
   #modelfitting
   brms,
-  #brmstools,
+  brmstools,
   lme4,
   mice,
   pwr)
@@ -89,11 +89,11 @@ brm.student_baseline <-
     control = list(
       adapt_delta = 0.99,
       max_treedepth = 20 ))
-
+summary(brm.student_baseline)
 pp_check(brm.student_baseline)
 
 # Check posterior update (were the priors ok?)
-Posterior <- posterior_samples(brm.student_baseline, pars = c(
+Posterior <- posterior_samples(brm.student_age_mo, pars = c(
   "prior_Intercept",
   "b_Intercept",
   "prior_sd_study_ID",
@@ -104,7 +104,7 @@ Posterior <- posterior_samples(brm.student_baseline, pars = c(
   "prior_nu",
   "nu"
 ))
-
+Posterior
 ggplot(Posterior) +
   geom_density(aes(prior_Intercept), fill="blue", color="blue",alpha=0.3) +
   geom_density(aes(b_Intercept), fill="red", color="red",alpha=0.3) + 
@@ -144,7 +144,7 @@ brm.student_age_prior <-
     brm(baseline_g, family = student,
                data = subset(MA_data, !is.na(hedge_g)),
                prior = priors2,
-               sample_prior = T,
+               sample_prior = "only",
                file = "brm.student_age_prior",
                iter = 20000, 
                warmup = 2000,
@@ -156,6 +156,7 @@ brm.student_age <-
   brm_multiple(data = MA_data_imp, family = student,
                hedge_g|se(se_hedge_g) ~ 1 + mean_age_1 + (1|study_ID/expt_condition),
                prior = priors2,
+               sample_prior = T,
                file = "brm.student_age",
                iter = 20000, 
                warmup = 2000,
@@ -188,7 +189,7 @@ brm.student_age_mo_prior <-
   brm(data = subset(MA_data, !is.na(hedge_g)), family = student,
                hedge_g|se(se_hedge_g) ~ 1 + mo(as.ordered(mean_age_1)) + (1|study_ID/expt_condition),
                prior = priors2,
-               sample_prior = T,
+               sample_prior = "only",
                file = "brm.student_age_mo_prior",
                iter = 20000,
                warmup = 2000,
@@ -197,16 +198,18 @@ brm.student_age_mo_prior <-
                control = list(adapt_delta = 0.99))
 pp_check(brm.student_age_mo_prior, nsamples = 100)
 brm.student_age_mo <-
-  brm(data = MA_data_imp, family = student,
+  brm_multiple(data = MA_data_imp, family = student,
       hedge_g|se(se_hedge_g) ~ 1 + mo(as.ordered(mean_age_1)) + (1|study_ID/expt_condition),
       prior = priors2,
       file = "brm.student_age_mo",
+      sample_prior = T,
       iter = 20000,
       warmup = 2000,
       chains = 2,
       cores = 2,
       control = list(adapt_delta = 0.99))
 pp_check(brm.student_age_mo, nsamples = 100)
+summary(brm.student_age_mo)
 
 Posterior <- posterior_samples(brm.student_age_mo, pars = c(
   "prior_Intercept",
@@ -219,7 +222,6 @@ Posterior <- posterior_samples(brm.student_age_mo, pars = c(
   "prior_nu",
   "nu"
 ))
-
 
 #Model 3:
 brm.student_lang <- 
