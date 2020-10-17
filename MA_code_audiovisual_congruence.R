@@ -140,11 +140,22 @@ priors2 <- c(prior(normal(0, 0.5), class = Intercept),
              prior(normal(0, 0.2), class = sd),
              prior(gamma(2, 0.1), class = nu))
 
+brm.student_age_prior <- 
+    brm(baseline_g, family = student,
+               data = subset(MA_data, !is.na(hedge_g)),
+               prior = priors2,
+               sample_prior = T,
+               file = "brm.student_age_prior",
+               iter = 20000, 
+               warmup = 2000,
+               chains = 2,
+               cores = 2,
+               control = list(adapt_delta = 0.99))
+pp_check(brm.student_age_prior, nsamples = 100)
 brm.student_age <- 
   brm_multiple(data = MA_data_imp, family = student,
                hedge_g|se(se_hedge_g) ~ 1 + mean_age_1 + (1|study_ID/expt_condition),
                prior = priors2,
-               sample_prior = T,
                file = "brm.student_age",
                iter = 20000, 
                warmup = 2000,
@@ -152,6 +163,19 @@ brm.student_age <-
                cores = 2,
                control = list(adapt_delta = 0.99))
 pp_check(brm.student_age)
+
+Posterior <- posterior_samples(brm.student_age, pars = c(
+  "prior_Intercept",
+  "b_Intercept",
+  "prior_sd_study_ID",
+  "sd_study_ID__Intercept",
+  "prior_sd_study_ID:expt_condition",
+  "sd_study_ID:expt_condition__Intercept",
+  "sigma",
+  "prior_nu",
+  "nu"
+))
+
 plot(conditional_effects(brm.student_age, 
                          spaghetti = T, 
                          nsamples = 250), 
@@ -160,17 +184,42 @@ plot(conditional_effects(brm.student_age,
      mean=F)
 summary(brm.student_age)
 
-brm.student_age_mo <-
-  brm_multiple(data = MA_data_imp, family = student,
+brm.student_age_mo_prior <-
+  brm(data = subset(MA_data, !is.na(hedge_g)), family = student,
                hedge_g|se(se_hedge_g) ~ 1 + mo(as.ordered(mean_age_1)) + (1|study_ID/expt_condition),
                prior = priors2,
                sample_prior = T,
-               file = "brm.student_age_mo",
+               file = "brm.student_age_mo_prior",
                iter = 20000,
                warmup = 2000,
                chains = 2,
                cores = 2,
                control = list(adapt_delta = 0.99))
+pp_check(brm.student_age_mo_prior, nsamples = 100)
+brm.student_age_mo <-
+  brm(data = MA_data_imp, family = student,
+      hedge_g|se(se_hedge_g) ~ 1 + mo(as.ordered(mean_age_1)) + (1|study_ID/expt_condition),
+      prior = priors2,
+      file = "brm.student_age_mo",
+      iter = 20000,
+      warmup = 2000,
+      chains = 2,
+      cores = 2,
+      control = list(adapt_delta = 0.99))
+pp_check(brm.student_age_mo, nsamples = 100)
+
+Posterior <- posterior_samples(brm.student_age_mo, pars = c(
+  "prior_Intercept",
+  "b_Intercept",
+  "prior_sd_study_ID",
+  "sd_study_ID__Intercept",
+  "prior_sd_study_ID:expt_condition",
+  "sd_study_ID:expt_condition__Intercept",
+  "sigma",
+  "prior_nu",
+  "nu"
+))
+
 
 #Model 3:
 brm.student_lang <- 
@@ -232,7 +281,7 @@ loo_model <- loo(brm.student_baseline)
 #shows evidence of one outlier, i.e. pareto k-value is above 0.7:
 plot(loo_model, label_points = T)
 #algorithm for updating a loo object when Pareto k estimates are large.
-loo_model <- loo_moment_match(loo_model)
+loo_model <- loo_moment_match(brm.student_baseline, loo=loo_model)
 plot(loo_model, label_points = T)
 pareto_k_influence_values(loo_model)
 
@@ -259,7 +308,7 @@ forest +
 MA_data_imp_for_average <- mice(MA_data, meth=meth, post=post, print=FALSE, m=100, maxit=25)
 all_data_imputations <- as.tibble(MA_data_imp_for_average$imp$se_hedge_g)
 #mean across 100 data imputations:
-mean_mi <- rowMeans(average_mi)
+mean_mi <- rowMeans(all_data_imputations)
 mean_mi <- as.tibble(mean_mi)
 #combine original with imputed sd values:
 original_values <- na.omit(MA_data$se_hedge_g)
