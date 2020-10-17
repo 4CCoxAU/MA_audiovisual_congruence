@@ -72,10 +72,11 @@ brm.student_baseline_prior <-
     chains = 2,
     control = list(adapt_delta = 0.99,
                    max_treedepth = 20))
-pp_check(brm.student_baseline)
+pp_check(brm.student_baseline_prior, nsamples = 100)
 brm.student_baseline <- 
   brm_multiple(
     hedge_g | se(se_hedge_g) ~ 1 + (1 | study_ID/expt_condition),
+    save_pars = save_pars(all = TRUE),
     data = MA_data_imp, 
     family = student,
     prior = priors1,
@@ -128,10 +129,17 @@ ggplot(Posterior) +
 summary(brm.student_baseline)
 
 #Model 2:
+baseline_g <- bf(hedge_g | se(se_hedge_g) ~ 1 + mean_age_1 + (1 | study_ID/expt_condition))
+
+get_prior(baseline_g,
+          data = MA_data, 
+          family = student)
+
 priors2 <- c(prior(normal(0, 0.5), class = Intercept),
              prior(normal(0, 0.2), class = b),
              prior(normal(0, 0.2), class = sd),
              prior(gamma(2, 0.1), class = nu))
+
 brm.student_age <- 
   brm_multiple(data = MA_data_imp, family = student,
                hedge_g|se(se_hedge_g) ~ 1 + mean_age_1 + (1|study_ID/expt_condition),
@@ -144,7 +152,12 @@ brm.student_age <-
                cores = 2,
                control = list(adapt_delta = 0.99))
 pp_check(brm.student_age)
-plot(conditional_effects(brm.student_age), points = TRUE)
+plot(conditional_effects(brm.student_age, 
+                         spaghetti = T, 
+                         nsamples = 250), 
+     points = T, 
+     point_args = c(alpha = 0.9, size = 1.7), 
+     mean=F)
 summary(brm.student_age)
 
 brm.student_age_mo <-
@@ -158,9 +171,6 @@ brm.student_age_mo <-
                chains = 2,
                cores = 2,
                control = list(adapt_delta = 0.99))
-
-brm.student_age <- add_criterion(brm.student_age, criterion = "loo")
-brm.student_age_mo <- add_criterion(brm.student_age_mo, criterion = "loo")
 
 #Model 3:
 brm.student_lang <- 
@@ -187,7 +197,7 @@ brm.student_stimuli <-
                cores=4,
                control = list(adapt_delta = 0.99))
 pp_check(brm.student_stimuli)
-plot(conditional_effects(brm.student_stimuli), points = TRUE)
+plot(conditional_effects(brm.student_stimuli))
 summary(brm.student_stimuli)
 
 #Model 5:
@@ -201,28 +211,32 @@ brm.student_interaction <-
                cores=4,
                control = list(adapt_delta = 0.99))
 pp_check(brm.student_interaction)
-plot(conditional_effects(brm.student_interaction), points = TRUE)
-summary(brm.student_interaction)
-
-#plot the influence of the moderators:
-plot(conditional_effects(brm.student_age, spaghetti = T, nsamples = 250), points = T, point_args = c(alpha = 0.9, size = 1.7), mean=F)
-plot(conditional_effects(brm.student_lang), title = 'DSDSDSD')
-plot(conditional_effects(brm.student_stimuli))
 plot(conditional_effects(brm.student_interaction,
                          effects = "mean_age_1:test_lang", 
-                         spaghetti = T, nsamples = 300),points = T, point_args = c(alpha = 0.9, size = 2), mean = F)
+                         spaghetti = T, nsamples = 300),
+     points = T, 
+     point_args = c(alpha = 0.9, size = 2), 
+     mean = F)
+summary(brm.student_interaction)
 
 #Check fits and model comparison:
 brm.student_baseline <- add_criterion(brm.student_baseline, criterion="loo")
-brm.student_age <- add_criterion(brm.student_age, criterion="loo")
+brm.student_age <- add_criterion(brm.student_age, criterion = "loo")
+brm.student_age_mo <- add_criterion(brm.student_age_mo, criterion = "loo")
 brm.student_lang <- add_criterion(brm.student_lang, criterion="loo")
 brm.student_stimuli <- add_criterion(brm.student_stimuli, criterion="loo")
 brm.student_interaction <- add_criterion(brm.student_interaction, criterion="loo")
 
-loo_model2 <- loo(brm.student_lang, moment_match = T)
-plot(loo_model2, label_points = T)
+#loo model of baseline:
+loo_model <- loo(brm.student_baseline)
+#shows evidence of one outlier, i.e. pareto k-value is above 0.7:
+plot(loo_model, label_points = T)
+#algorithm for updating a loo object when Pareto k estimates are large.
+loo_model <- loo_moment_match(loo_model)
+plot(loo_model, label_points = T)
 pareto_k_influence_values(loo_model)
 
+#model comparison:
 loo_model_weights(brm.student_baseline, brm.student_age)
 loo_model_weights(brm.student_baseline, brm.student_lang)
 loo_model_weights(brm.student_baseline, brm.student_stimuli)
@@ -278,15 +292,15 @@ ggplot( data = res.df, aes( x = eta, y = est ) ) +
 
 #create a significance funnel plot to examine publication bias:
 sig_fun <- significance_funnel( yi = MA_data_average_imp$hedge_g,
-                     vi = MA_data_average_imp$se_hedge_g,
-                     xmin = min(MA_data_average_imp$hedge_g),
-                     xmax = max(MA_data_average_imp$hedge_g),
-                     ymin = 0.2,
-                     ymax = max(sqrt(MA_data_average_imp$se_hedge_g)),
-                     xlab = "Point Estimate of Effect Size",
-                     ylab = "Standard Error of Effect Size",
-                     favor.positive = T,
-                     alpha.select = 0.05)
+                                vi = MA_data_average_imp$se_hedge_g,
+                                xmin = min(MA_data_average_imp$hedge_g),
+                                xmax = max(MA_data_average_imp$hedge_g),
+                                ymin = 0.2,
+                                ymax = max(sqrt(MA_data_average_imp$se_hedge_g)),
+                                xlab = "Point Estimate of Effect Size",
+                                ylab = "Standard Error of Effect Size",
+                                favor.positive = T,
+                                alpha.select = 0.05)
 sig_fun +
   ggtitle("Significance Funnel Plot of Meta-Analytic Studies") +
   theme(plot.title = element_text(hjust = 0.5, face="bold", size=14)) +
@@ -365,21 +379,17 @@ m.brm_sd <- brm(se_hedge_g ~ n_1*hedge_g,
              warmup = 2000,
              cores=4,
              control = list(adapt_delta = 0.80))
-
 Posterior <- posterior_samples(m.brm_sd)
 Posterior
 Posterior$b_Intercept
-
 data$Predicted_SE1 <- rnorm(1, mean(Posterior$b_Intercept), sd(Posterior$b_Intercept)) + rnorm(1, mean(Posterior$b_n_1, sd(Posterior$b_n_1))) + Posterior$b_hedge_g + Posterior$sigma
 data$Predicted_SE2 <- rnorm(1, mean(Posterior$Intercept), sd(Posterior$Intercept)) + rnorm(1, mean(Posterior$b_n_1, sd(Posterior$b_n_1))  n_1 + b2  Hedges_g + b3  n_1  Hedges_g + sigma
 predict(m, newdata = d_NA, allow_new_levels = TRUE, summary = TRUE))
-
 #predict standard error based on model:
 predicted_se <- predict(m.brm_sd)
 predicted_se
 dat <- as.data.frame(cbind(Y = standata(m.brm_sd)$Y, predicted_se))
 ggplot(dat) + geom_point(aes(x = Estimate, y = Y))
-
 #forest plot:
 y <- data.frame(es=MA_data_2$hedge_g, se = MA_data_2$se_hedge_g, study_ID = MA_data_2$study_ID)
 y <- y[order(MA_data_2$hedge_g),]
