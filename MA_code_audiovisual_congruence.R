@@ -73,6 +73,7 @@ brm.student_baseline_prior <-
     control = list(adapt_delta = 0.99,
                    max_treedepth = 20))
 pp_check(brm.student_baseline_prior, nsamples = 100)
+
 brm.student_baseline <- 
   brm_multiple(
     hedge_g | se(se_hedge_g) ~ 1 + (1 | study_ID/expt_condition),
@@ -93,7 +94,7 @@ summary(brm.student_baseline)
 pp_check(brm.student_baseline)
 
 # Check posterior update (were the priors ok?)
-Posterior <- posterior_samples(brm.student_age_mo, pars = c(
+Posterior <- posterior_samples(brm.student_baseline, pars = c(
   "prior_Intercept",
   "b_Intercept",
   "prior_sd_study_ID",
@@ -129,29 +130,6 @@ ggplot(Posterior) +
 summary(brm.student_baseline)
 
 #Model 2:
-baseline_g <- bf(hedge_g | se(se_hedge_g) ~ 1 + mean_age_1 + (1 | study_ID/expt_condition))
-
-get_prior(baseline_g,
-          data = MA_data, 
-          family = student)
-
-priors2 <- c(prior(normal(0, 0.5), class = Intercept),
-             prior(normal(0, 0.2), class = b),
-             prior(normal(0, 0.2), class = sd),
-             prior(gamma(2, 0.1), class = nu))
-
-brm.student_age_prior <- 
-    brm(baseline_g, family = student,
-               data = subset(MA_data, !is.na(hedge_g)),
-               prior = priors2,
-               sample_prior = "only",
-               file = "brm.student_age_prior",
-               iter = 20000, 
-               warmup = 2000,
-               chains = 2,
-               cores = 2,
-               control = list(adapt_delta = 0.99))
-pp_check(brm.student_age_prior, nsamples = 100)
 brm.student_age <- 
   brm_multiple(data = MA_data_imp, family = student,
                hedge_g|se(se_hedge_g) ~ 1 + mean_age_1 + (1|study_ID/expt_condition),
@@ -177,6 +155,7 @@ Posterior <- posterior_samples(brm.student_age, pars = c(
   "nu"
 ))
 
+
 plot(conditional_effects(brm.student_age, 
                          spaghetti = T, 
                          nsamples = 250), 
@@ -185,18 +164,7 @@ plot(conditional_effects(brm.student_age,
      mean=F)
 summary(brm.student_age)
 
-brm.student_age_mo_prior <-
-  brm(data = subset(MA_data, !is.na(hedge_g)), family = student,
-               hedge_g|se(se_hedge_g) ~ 1 + mo(as.ordered(mean_age_1)) + (1|study_ID/expt_condition),
-               prior = priors2,
-               sample_prior = "only",
-               file = "brm.student_age_mo_prior",
-               iter = 20000,
-               warmup = 2000,
-               chains = 2,
-               cores = 2,
-               control = list(adapt_delta = 0.99))
-pp_check(brm.student_age_mo_prior, nsamples = 100)
+#model 2.5:
 brm.student_age_mo <-
   brm_multiple(data = MA_data_imp, family = student,
       hedge_g|se(se_hedge_g) ~ 1 + mo(as.ordered(mean_age_1)) + (1|study_ID/expt_condition),
@@ -228,26 +196,55 @@ brm.student_lang <-
   brm_multiple(data = MA_data_imp, family = student,
                hedge_g|se(se_hedge_g) ~ 1 + test_lang + (1|study_ID/expt_condition),
                prior = priors2,
+               sample_prior = T,
+               file = "brm.student_lang",
                iter = 20000, 
                warmup = 2000,
-               file = "brm.student_age_lang",
-               cores=4,
+               chains = 2,
+               cores = 2,
                control = list(adapt_delta = 0.99))
 pp_check(brm.student_lang)
 plot(conditional_effects(brm.student_lang), points = TRUE)
 summary(brm.student_lang)
+
+Posterior <- posterior_samples(brm.student_lang, pars = c(
+  "prior_Intercept",
+  "b_Intercept",
+  "prior_sd_study_ID",
+  "sd_study_ID__Intercept",
+  "prior_sd_study_ID:expt_condition",
+  "sd_study_ID:expt_condition__Intercept",
+  "sigma",
+  "prior_nu",
+  "nu"
+))
+
 
 #Model 4:
 brm.student_stimuli <- 
   brm_multiple(data = MA_data_imp, family = student,
                hedge_g|se(se_hedge_g) ~ 1 + stimuli_type + (1|study_ID/expt_condition),
                prior = priors2,
+               sample_prior = T,
+               file = "brm.student_stimuli",
                iter = 20000, 
                warmup = 2000,
-               file = "brm.student_age_stimuli",
-               cores=4,
+               chains = 2,
+               cores = 2,
                control = list(adapt_delta = 0.99))
-pp_check(brm.student_stimuli)
+
+Posterior <- posterior_samples(brm.student_stimuli, pars = c(
+  "prior_Intercept",
+  "b_Intercept",
+  "prior_sd_study_ID",
+  "sd_study_ID__Intercept",
+  "prior_sd_study_ID:expt_condition",
+  "sd_study_ID:expt_condition__Intercept",
+  "sigma",
+  "prior_nu",
+  "nu"
+))
+
 plot(conditional_effects(brm.student_stimuli))
 summary(brm.student_stimuli)
 
@@ -256,11 +253,26 @@ brm.student_interaction <-
   brm_multiple(data = MA_data_imp, family = student,
                hedge_g|se(se_hedge_g) ~ 1 + mean_age_1*test_lang + (1|study_ID/expt_condition),
                prior = priors2,
+               sample_prior = T,
+               file = "brm.student_interaction",
                iter = 20000, 
                warmup = 2000,
-               file = "brm.student_age_interaction",
-               cores=4,
+               chains = 2,
+               cores = 2,
                control = list(adapt_delta = 0.99))
+
+Posterior <- posterior_samples(brm.student_interaction, pars = c(
+  "prior_Intercept",
+  "b_Intercept",
+  "prior_sd_study_ID",
+  "sd_study_ID__Intercept",
+  "prior_sd_study_ID:expt_condition",
+  "sd_study_ID:expt_condition__Intercept",
+  "sigma",
+  "prior_nu",
+  "nu"
+))
+
 pp_check(brm.student_interaction)
 plot(conditional_effects(brm.student_interaction,
                          effects = "mean_age_1:test_lang", 
@@ -299,7 +311,7 @@ forest <- forest(
   sort = TRUE,
   fill_ridge = "lightsteelblue4")
 forest + 
-  scale_x_continuous("Hedges' g", limits = c(-0.75, 2.75)) +
+  scale_x_continuous("Hedges' g", limits = c(-0.75, 2)) +
   ylab(' ') +
   ggtitle("Forest Plot of Estimated Effect Sizes") +
   theme_forest()
