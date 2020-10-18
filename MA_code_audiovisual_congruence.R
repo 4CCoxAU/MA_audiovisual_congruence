@@ -161,6 +161,7 @@ brm.student_age_mo <-
 
 brm.student_age <- add_criterion(brm.student_age, criterion = "loo")
 brm.student_age_mo <- add_criterion(brm.student_age_mo, criterion = "loo")
+loo_compare(brm.student_age,brm.student_age_mo)
 
 #Model 3:
 brm.student_lang <- 
