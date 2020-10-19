@@ -324,10 +324,10 @@ forest +
 
 #create average of 100 imputations: use only for significance funnel plot & publication bias analysis
 MA_data_imp_for_average <- mice(MA_data, meth=meth, post=post, print=FALSE, m=100, maxit=25)
-all_data_imputations <- as.tibble(MA_data_imp_for_average$imp$se_hedge_g)
+all_data_imputations <- as_tibble(MA_data_imp_for_average$imp$se_hedge_g)
 #mean across 100 data imputations:
 mean_mi <- rowMeans(all_data_imputations)
-mean_mi <- as.tibble(mean_mi)
+mean_mi <- as_tibble(mean_mi)
 #combine original with imputed sd values:
 original_values <- na.omit(MA_data$se_hedge_g)
 MA_data_average_imp <- MA_data %>%
