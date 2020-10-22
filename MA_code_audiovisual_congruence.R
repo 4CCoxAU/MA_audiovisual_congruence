@@ -351,7 +351,7 @@ ggplot(aes(b_Intercept, relevel(study_ID, "Pooled Effect", after = Inf)),
 #Examine publication bias: 
 
 #create average of 100 imputations: use only for significance funnel plot & publication bias analysis
-MA_data_imp_for_average <- mice(MA_data, meth=meth, post=post, print=FALSE, m=100, maxit=25)
+MA_data_imp_for_average <- mice(MA_data, meth=meth, post=post, print=FALSE, m=100, maxit=25, seed = 7)
 all_data_imputations <- as_tibble(MA_data_imp_for_average$imp$se_hedge_g)
 #mean across 100 data imputations:
 mean_mi <- rowMeans(all_data_imputations)
@@ -363,7 +363,7 @@ MA_data_average_imp <- MA_data %>%
   relocate(se_hedge_g, .before = n_1)
 
 #make sensitivity plot, as in Mathur & VanderWeele (2020):
-eta.list = as.list( c( 200, 150, 100, 50, 40, 30, 20, rev( seq(1,15,1) ) ) )
+eta.list = as.list(rev( seq(1,50,1) ) )
 res.list = lapply( eta.list, function(x) {
   cat("\n Working on eta = ", x)
   return( corrected_meta( yi = MA_data_average_imp$hedge_g,
@@ -377,12 +377,15 @@ res.list = lapply( eta.list, function(x) {
 # put results for each eta in a dataframe and plot:
 res.df = as.data.frame( do.call( "rbind", res.list ) )
 #plot the results:
-ggplot( data = res.df, aes( x = eta, y = est ) ) + 
+sensitivity_plot <- ggplot( data = res.df, aes( x = eta, y = est ) ) + 
   geom_ribbon( data = res.df, aes( x = eta, ymin = lo, ymax = hi ), fill = "gray" ) +
-  geom_line( lwd = 1.2 ) +
+  geom_line( lwd = 0.5 ) +
   xlab( bquote( eta ) ) +
   ylab( bquote( hat(mu)[eta] ) ) +
   theme_classic()
+
+sensitivity_plot + ggtitle("Severity of Publication Bias Required to Attenuate the Estimate") + 
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=14))
 
 
 #create a significance funnel plot to examine publication bias:
@@ -390,7 +393,7 @@ sig_fun <- significance_funnel( yi = MA_data_average_imp$hedge_g,
                                 vi = MA_data_average_imp$se_hedge_g,
                                 xmin = min(MA_data_average_imp$hedge_g),
                                 xmax = max(MA_data_average_imp$hedge_g),
-                                ymin = 0.2,
+                                ymin = min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05,
                                 ymax = max(sqrt(MA_data_average_imp$se_hedge_g)),
                                 xlab = "Point Estimate of Effect Size",
                                 ylab = "Standard Error of Effect Size",
@@ -399,8 +402,9 @@ sig_fun <- significance_funnel( yi = MA_data_average_imp$hedge_g,
 sig_fun +
   ggtitle("Significance Funnel Plot of Meta-Analytic Studies") +
   theme(plot.title = element_text(hjust = 0.5, face="bold", size=14)) +
-  geom_vline(xintercept=0.36, linetype="solid") +
-  geom_vline(xintercept=0.238, linetype="dashed")
+  geom_point(aes(x=0.349, y=min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05), size = 8, shape = 18, colour="black", show.legend = F) +
+  geom_point(aes(x=0.237, y=min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05), size = 8, shape = 18, colour="lightsteelblue4", show.legend = F) +
+  geom_hline(yintercept = min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05, linetype = "dashed")
 
 
 #calculate severity of publication bias needed to "explain away" the results:
