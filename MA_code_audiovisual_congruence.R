@@ -379,14 +379,13 @@ res.df = as.data.frame( do.call( "rbind", res.list ) )
 #plot the results:
 sensitivity_plot <- ggplot( data = res.df, aes( x = eta, y = est ) ) + 
   geom_ribbon( data = res.df, aes( x = eta, ymin = lo, ymax = hi ), fill = "gray" ) +
-  geom_line( lwd = 0.5 ) +
-  xlab( bquote( eta ) ) +
-  ylab( bquote( hat(mu)[eta] ) ) +
+  geom_line( lwd = 1 ) +
+  xlab( 'Publication Probability for Affirmative Studies') +
+  ylab('Effect Size Esimate' ) +
   theme_classic()
 
-sensitivity_plot + ggtitle("Severity of Publication Bias Required to Attenuate the Estimate") + 
-  theme(plot.title = element_text(hjust = 0.5, face="bold", size=14))
-
+sensitivity_plot + ggtitle("Sensitivity Analysis for Effect Size Estimate") +
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=20))
 
 #create a significance funnel plot to examine publication bias:
 sig_fun <- significance_funnel( yi = MA_data_average_imp$hedge_g,
@@ -401,7 +400,7 @@ sig_fun <- significance_funnel( yi = MA_data_average_imp$hedge_g,
                                 alpha.select = 0.05)
 sig_fun +
   ggtitle("Significance Funnel Plot of Meta-Analytic Studies") +
-  theme(plot.title = element_text(hjust = 0.5, face="bold", size=14)) +
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=20)) +
   geom_point(aes(x=0.349, y=min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05), size = 8, shape = 18, colour="black", show.legend = F) +
   geom_point(aes(x=0.237, y=min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05), size = 8, shape = 18, colour="lightsteelblue4", show.legend = F) +
   geom_hline(yintercept = min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05, linetype = "dashed")
