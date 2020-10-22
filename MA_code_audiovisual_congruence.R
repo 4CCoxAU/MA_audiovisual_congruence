@@ -4,6 +4,8 @@ pacman::p_load(
   here,
   dplyr,
   moments,
+  glue,
+  tidybayes
   #metaanalysis
   metafor,
   metaviz,
@@ -13,7 +15,6 @@ pacman::p_load(
   ggridges,
   #modelfitting
   brms,
-  brmstools,
   lme4,
   mice,
   pwr)
@@ -167,7 +168,7 @@ summary(brm.student_age)
 #model 2.5:
 brm.student_age_mo <-
   brm_multiple(data = MA_data_imp, family = student,
-
+               
                hedge_g|se(se_hedge_g) ~ 1 + mo(as.ordered(mean_age_1)) + (1|study_ID/expt_condition),
                prior = priors2,
                sample_prior = T,
@@ -310,15 +311,37 @@ loo_model_weights(brm.student_baseline, brm.student_stimuli)
 loo_model_weights(brm.student_baseline, brm.student_interaction)
 
 #Create forest plot:
-forest <- forest(
-  model = brm.student_baseline, 
-  sort = TRUE,
-  fill_ridge = "lightsteelblue4")
-forest + 
-  scale_x_continuous("Hedges' g", limits = c(-0.75, 2)) +
-  ylab(' ') +
-  ggtitle("Forest Plot of Estimated Effect Sizes") +
-  theme_forest()
+
+#extract data from the baseline model:
+study.draws <- spread_draws(brm.student_baseline, r_study_ID[study_ID,], b_Intercept) %>% 
+  mutate(b_Intercept = r_study_ID + b_Intercept)
+
+pooled.effect.draws <- spread_draws(brm.student_baseline, b_Intercept) %>% 
+  mutate(study_ID = "Pooled Effect")
+
+forest.data <- bind_rows(study.draws, pooled.effect.draws) %>% 
+  ungroup() %>%
+  mutate(study_ID = str_replace_all(study_ID, "[.]", " ")) %>% 
+  mutate(study_ID = reorder(study_ID, b_Intercept))
+
+forest.data.summary <- group_by(forest.data, study_ID) %>% 
+  mean_qi(b_Intercept)
+
+#plot the results:
+ggplot(aes(b_Intercept, relevel(study_ID, "Pooled Effect", after = Inf)), 
+       data = forest.data) +
+  geom_vline(xintercept = 0, color = "black", size = 0.3, linetype="dotted") +
+  geom_density_ridges(fill = "lightsteelblue4", rel_min_height = 0.03, col = NA, scale = 0.9,
+                      alpha = 0.8, linetype = "dotted", size = 0.5) +
+  geom_point(data=forest.data.summary, color='black', shape=18, size=2) +
+  geom_errorbarh(data=forest.data.summary, aes(xmax = .upper, xmin = .lower, height = 0.1)) +
+  geom_text(data = mutate_if(forest.data.summary, is.numeric, round, 3),
+            aes(label = glue("{b_Intercept} [{.lower}, {.upper}]"), x = Inf), hjust = "inward", size = 3) +
+  labs(x = "placeholder", 
+       y = element_blank()) +
+  scale_x_continuous("Hedges' g", limits = c(-0.75, 2.2)) +
+  ggtitle("Forest Plot of Estimated Effect Sizes for Meta-Analytic Studies") +
+  theme_classic()
 
 #Examine publication bias: 
 
@@ -388,15 +411,14 @@ svalue( yi = MA_data_average_imp$hedge_g,
         small = TRUE,
         return.worst.meta = TRUE)
 
-
 #power calculations:
-pwr.t.test(n = , d = 0.33, sig.level = 0.05, power = 0.80, type = "one.sample")
+pwr.t.test(n = , d = 0.349, sig.level = 0.05, power = 0.80, type = "one.sample")
 
-#plot of posterior samples for effect size:
-post.samples <- posterior_samples(m.brm, c("^b", "^sd"))
+
+#plot of posterior samples for pooled effect size:
+post.samples <- posterior_samples(brm.student_baseline, c("^b", "^sd"))
 names(post.samples) <- c("smd", "tau")
 mean <- mean(post.samples$smd)
-summary(m.brm)
 
 #plot the data:
 ggplot(aes(x = smd), data = post.samples) +
@@ -409,65 +431,3 @@ ggplot(aes(x = smd), data = post.samples) +
   theme(plot.title = element_text(hjust = 0.5, face="bold", size=14)) +
   xlab('Effect Size') +
   ylab('Density')
-
-ggplot(aes(x = tau), data = post.samples) +
-  geom_density(fill = "lightblue", color = "lightblue", alpha = 0.7) +
-  geom_point(y = 0, x = mean(post.samples$tau)) +
-  labs(x = expression(italic(Tau)),
-       y = element_blank()) +
-  theme_minimal()
-
-#probability that effect size is under 0.2:
-smd.ecdf <- ecdf(post.samples$smd)
-smd.ecdf(0.2)
-
-#plot of age of infant participants
-p <- MA_data_2 %>%
-  ggplot( aes(x=mean_age_1)) +
-  geom_histogram( binwidth=100, fill="#69b3a2", color="#e9ecef", alpha=0.9) +
-  ggtitle("Age of Infant Participants in Meta-analytic Studies") +
-  theme(plot.title = element_text(hjust = 0.5, face="bold", size=14)) +
-  xlab('Mean Age in Days') +
-  ylab('Count')
-
-
-
-
-
-
-#Below are deleted scenes:
-
-"
-#model to estimate se of effect size in studies:
-m.brm_sd <- brm(se_hedge_g ~ n_1*hedge_g,
-             data = MA_data,
-             prior = priors,
-             iter = 10000, 
-             warmup = 2000,
-             cores=4,
-             control = list(adapt_delta = 0.80))
-Posterior <- posterior_samples(m.brm_sd)
-Posterior
-Posterior$b_Intercept
-data$Predicted_SE1 <- rnorm(1, mean(Posterior$b_Intercept), sd(Posterior$b_Intercept)) + rnorm(1, mean(Posterior$b_n_1, sd(Posterior$b_n_1))) + Posterior$b_hedge_g + Posterior$sigma
-data$Predicted_SE2 <- rnorm(1, mean(Posterior$Intercept), sd(Posterior$Intercept)) + rnorm(1, mean(Posterior$b_n_1, sd(Posterior$b_n_1))  n_1 + b2  Hedges_g + b3  n_1  Hedges_g + sigma
-predict(m, newdata = d_NA, allow_new_levels = TRUE, summary = TRUE))
-#predict standard error based on model:
-predicted_se <- predict(m.brm_sd)
-predicted_se
-dat <- as.data.frame(cbind(Y = standata(m.brm_sd)$Y, predicted_se))
-ggplot(dat) + geom_point(aes(x = Estimate, y = Y))
-#forest plot:
-y <- data.frame(es=MA_data_2$hedge_g, se = MA_data_2$se_hedge_g, study_ID = MA_data_2$study_ID)
-y <- y[order(MA_data_2$hedge_g),]
-viz_forest(x = y[1:92, c("es", "se")], study_labels = y[1:92, c("study_ID")],summary_label = "Summary effect", xlab = "Hedges_g", variant = "rain", method = "DL")
-"
-
-#deleted scenes #2:
-#frequentist model of data:
-full.model <- rma.mv(hedge_g, 
-                     se_hedge_g,
-                     random = ~ 1 | study_ID/expt_condition, 
-                     tdist = TRUE, 
-                     data = MA_data_imp,
-                     method = "REML")"
