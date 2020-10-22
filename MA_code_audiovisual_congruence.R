@@ -5,7 +5,7 @@ pacman::p_load(
   dplyr,
   moments,
   glue,
-  tidybayes
+  tidybayes,
   #metaanalysis
   metafor,
   metaviz,
@@ -131,6 +131,11 @@ ggplot(Posterior) +
 summary(brm.student_baseline)
 
 #Model 2:
+priors2 <- c(prior(normal(0, 0.5), class = Intercept),
+             prior(normal(0, 0.2), class = b),
+             prior(normal(0, 0.2), class = sd),
+             prior(gamma(2, 0.1), class = nu))
+
 brm.student_age <- 
   brm_multiple(data = MA_data_imp, family = student,
                hedge_g|se(se_hedge_g) ~ 1 + mean_age_1 + (1|study_ID/expt_condition),
