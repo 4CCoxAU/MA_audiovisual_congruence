@@ -286,7 +286,8 @@ c_eff_plot <- plot(c_eff, mean = F, points = T, point_args = c(alpha = 1, size =
   ggtitle('Plot of Interaction between Mean Age & Test Language') +
   theme_bw()
 
-c_eff_plot + scale_colour_manual(name = 'Test Language', labels = c('Native', "Non-native"), values = c("native" = "lightsteelblue4", "non-native" = "coral2"))
+c_eff_plot + scale_colour_manual(name = 'Test Language', labels = c('Native', "Non-native"), values = c("native" = "lightsteelblue4", "non-native" = "coral2")) +
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=20))
 
 summary(brm.student_interaction)
 
