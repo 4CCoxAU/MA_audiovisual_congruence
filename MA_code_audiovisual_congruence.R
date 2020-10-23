@@ -161,14 +161,7 @@ Posterior <- posterior_samples(brm.student_age, pars = c(
   "nu"
 ))
 
-
-plot(conditional_effects(brm.student_age, 
-                         spaghetti = T, 
-                         nsamples = 250), 
-     points = T, 
-     point_args = c(alpha = 0.9, size = 1.7), 
-     mean=F)
-summary(brm.student_age)
+pp_check(brm.student_age)
 
 #model 2.5:
 brm.student_age_mo <-
@@ -284,12 +277,17 @@ Posterior <- posterior_samples(brm.student_interaction, pars = c(
 ))
 
 pp_check(brm.student_interaction)
-plot(conditional_effects(brm.student_interaction,
-                         effects = "mean_age_1:test_lang", 
-                         spaghetti = T, nsamples = 300),
-     points = T, 
-     point_args = c(alpha = 0.9, size = 2), 
-     mean = F)
+c_eff <- conditional_effects(brm.student_interaction, effects = 'mean_age_1:test_lang', spaghetti = T, nsamples = 50)
+c_eff_plot <- plot(c_eff, mean = F, points = T, point_args = c(alpha = 1, size = 2, show.legend = FALSE), spaghetti_args = c(alpha = 0.01, size = 0.4), plot = FALSE)[[1]] +
+  xlab("Mean Age in Days") +
+  ylab("Hedges' g | se") +
+  xlim(c(0, 400)) +
+  ylim(c(-2, 3)) +
+  ggtitle('Plot of Interaction between Mean Age & Test Language') +
+  theme_bw()
+
+c_eff_plot + scale_colour_manual(name = 'Test Language', labels = c('Native', "Non-native"), values = c("native" = "lightsteelblue4", "non-native" = "coral2"))
+
 summary(brm.student_interaction)
 
 #Check fits and model comparison:
