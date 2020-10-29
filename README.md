@@ -1,2 +1,1 @@
-# MA_audiovisual_congruence
-Main q: are children regardless of anything sensitive to congruent audio-visual information? How big is the effect? Publication bias, etc.
+Data & Script for Meta-Analysis of Infants' Ability to Perceive Audio-Visual Congruence for Speech Sounds
