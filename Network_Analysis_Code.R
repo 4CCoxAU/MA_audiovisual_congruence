@@ -2,7 +2,7 @@ library(bibliometrix)
 library(tidyverse)
 
 #import data
-TEST <- convert2df('/Users/au620441/Downloads/savedrecs(2).bib', dbsource = "wos", format = "bibtex")
+TEST <- convert2df('savedrecs(2).bib', dbsource = "wos", format = "bibtex")
 
 #summary results
 results <- biblioAnalysis(TEST, sep = ";")
@@ -10,7 +10,7 @@ S=summary(object = results, k = 24, pause = FALSE)
 
 # Traditional network analysis of the papers:
 NetMatrix <- biblioNetwork(TEST, analysis = "coupling", network = "references", sep = ". ")
-net2=networkPlot(NetMatrix, 
+net2 <- networkPlot(NetMatrix, 
                  normalize = "association", 
                  n = 24, 
                  Title = "Citation Network for Studies on Infants' Ability to Perceive Audio-Visual Congruence", 
