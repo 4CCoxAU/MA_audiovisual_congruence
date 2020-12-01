@@ -27,5 +27,8 @@ net2 <- networkPlot(NetMatrix,
                  size.cex = TRUE)
 
 #Historical citation network:
-histResults <- histNetwork(TEST, min.citations = 0, sep = ";", network = TRUE, verbose = TRUE)
+x <- localCitations(TEST, fast.search = FALSE, sep = ";")
+H=histNetwork(TEST,min.citations = 1, sep=";", network=FALSE)
+histResults$NetMatrix
+histResults <- histNetwork(TEST, min.citations = 1, sep = ";", network = TRUE, verbose = TRUE)
 histPlot(histResults, n = 24, size = 12, labelsize = 4, title_as_label = FALSE, verbose = FALSE)
