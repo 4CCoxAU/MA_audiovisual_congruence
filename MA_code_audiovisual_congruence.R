@@ -364,12 +364,17 @@ MA_data_average_imp <- MA_data %>%
   mutate(se_hedge_g = c(original_values, mean_mi$value)) %>%
   relocate(se_hedge_g, .before = n_1)
 
+#calculate effect size variance for each study:
+MA_data_average_imp <- MA_data_average_imp %>%
+  mutate(vi = (se_hedge_g * sqrt(n_1))^2) %>%
+  relocate(vi, .before = se_hedge_g)
+
 #make sensitivity plot, as in Mathur & VanderWeele (2020):
 eta.list = as.list(rev( seq(1,50,1) ) )
 res.list = lapply( eta.list, function(x) {
   cat("\n Working on eta = ", x)
   return( corrected_meta( yi = MA_data_average_imp$hedge_g,
-                          vi = MA_data_average_imp$se_hedge_g,
+                          vi = MA_data_average_imp$vi,
                           eta = x,
                           model = "robust",
                           favor.positive = TRUE,
