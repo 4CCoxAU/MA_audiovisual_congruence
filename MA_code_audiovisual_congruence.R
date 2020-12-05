@@ -378,7 +378,7 @@ svalue <- svalue( yi = MA_data_average_imp$hedge_g,
                   return.worst.meta = TRUE)
 
 #make sensitivity plot, as in Mathur & VanderWeele (2020):
-eta.list = as.list(rev( seq(1,80,1) ) )
+eta.list = as.list( c(150, rev( seq(1,100,1) ) ) )
 res.list = lapply( eta.list, function(x) {
   cat("\n Working on eta = ", x)
   return( corrected_meta( yi = MA_data_average_imp$hedge_g,
@@ -392,16 +392,17 @@ res.list = lapply( eta.list, function(x) {
 # put results for each eta in a dataframe and plot:
 res.df = as.data.frame( do.call( "rbind", res.list ) )
 #plot the results:
-sensitivity_plot <- ggplot( data = res.df, aes( x = eta, y = est ) ) + 
+ggplot( data = res.df, aes( x = eta, y = est ) ) + 
   geom_ribbon( data = res.df, aes( x = eta, ymin = lo, ymax = hi ), fill = "skyblue4" ) +
   geom_line( lwd = 1.5) +
   xlab( 'Publication Probability for Significant Studies') +
   ylab('Effect Size Esimate' ) + 
   ggtitle("Sensitivity Analysis for Effect Size Estimate") +
   theme(plot.title = element_text(hjust = 0.5, face="bold", size=20)) +
-  geom_hline(yintercept = 0.1, linetype = "dotted", color = "orange", size = 0.7) +
-  geom_hline(yintercept = 0.0, linetype = "dashed", color = "red", size = 0.7) +
+  geom_hline(yintercept = 0.0, linetype = "dotted", color = "orange", size = 0.7) +
+  geom_hline(yintercept = svalue$meta.worst$b.r, linetype = "dashed", color = "red", size = 0.7) +
   scale_y_continuous(breaks=c(-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6)) +
+  scale_x_continuous(breaks=c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150)) +
   theme_classic()
 
 #create a significance funnel plot to examine publication bias:
