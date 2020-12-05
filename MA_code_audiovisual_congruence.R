@@ -278,7 +278,7 @@ Posterior <- posterior_samples(brm.student_interaction, pars = c(
 
 pp_check(brm.student_interaction)
 c_eff <- conditional_effects(brm.student_interaction, effects = 'mean_age_1:test_lang', spaghetti = T, nsamples = 150)
-c_eff_plot <- plot(c_eff, mean = FALSE, points = T, point_args = c(alpha = 1, size = 3, show.legend = FALSE), spaghetti_args = c(alpha = 0.001, size = 0.2), plot = FALSE)[[1]] +
+c_eff_plot <- plot(c_eff, mean = FALSE, points = T, point_args = c(alpha = 1, size = 3, show.legend = FALSE), spaghetti_args = c(alpha = 0.00001, size = 0.1), plot = FALSE)[[1]] +
   xlab("Mean Age in Days") +
   ylab("Hedges' g") +
   xlim(c(0, 400)) +
@@ -392,18 +392,19 @@ res.list = lapply( eta.list, function(x) {
 # put results for each eta in a dataframe and plot:
 res.df = as.data.frame( do.call( "rbind", res.list ) )
 #plot the results:
-ggplot( data = res.df, aes( x = eta, y = est ) ) + 
+Sensitivity_analysis <- ggplot( data = res.df, aes( x = eta, y = est ) ) + 
   geom_ribbon( data = res.df, aes( x = eta, ymin = lo, ymax = hi ), fill = "skyblue4" ) +
   geom_line( lwd = 1.5) +
   xlab( 'Publication Probability for Significant Studies') +
   ylab('Effect Size Esimate' ) + 
-  ggtitle("Sensitivity Analysis for Effect Size Estimate") +
-  theme(plot.title = element_text(hjust = 0.5, face="bold", size=20)) +
   geom_hline(yintercept = 0.0, linetype = "dotted", color = "orange", size = 0.7) +
   geom_hline(yintercept = svalue$meta.worst$b.r, linetype = "dashed", color = "red", size = 0.7) +
   scale_y_continuous(breaks=c(-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6)) +
   scale_x_continuous(breaks=c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150)) +
   theme_classic()
+
+Sensitivity_analysis + ggtitle("Sensitivity Analysis for Effect Size Estimate") +
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=20))
 
 #create a significance funnel plot to examine publication bias:
 sig_fun <- significance_funnel( yi = MA_data_average_imp$hedge_g,
