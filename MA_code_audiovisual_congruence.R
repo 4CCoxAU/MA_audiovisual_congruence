@@ -393,14 +393,16 @@ res.list = lapply( eta.list, function(x) {
 res.df = as.data.frame( do.call( "rbind", res.list ) )
 #plot the results:
 sensitivity_plot <- ggplot( data = res.df, aes( x = eta, y = est ) ) + 
-  geom_ribbon( data = res.df, aes( x = eta, ymin = lo, ymax = hi ), fill = "gray" ) +
-  geom_line( lwd = 1 ) +
-  xlab( 'Publication Probability for Affirmative Studies') +
-  ylab('Effect Size Esimate' ) +
+  geom_ribbon( data = res.df, aes( x = eta, ymin = lo, ymax = hi ), fill = "skyblue4" ) +
+  geom_line( lwd = 1.5) +
+  xlab( 'Publication Probability for Significant Studies') +
+  ylab('Effect Size Esimate' ) + 
+  ggtitle("Sensitivity Analysis for Effect Size Estimate") +
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=20)) +
+  geom_hline(yintercept = 0.1, linetype = "dotted", color = "orange", size = 0.7) +
+  geom_hline(yintercept = 0.0, linetype = "dashed", color = "red", size = 0.7) +
+  scale_y_continuous(breaks=c(-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6)) +
   theme_classic()
-
-sensitivity_plot + ggtitle("Sensitivity Analysis for Effect Size Estimate") +
-  theme(plot.title = element_text(hjust = 0.5, face="bold", size=20))
 
 #create a significance funnel plot to examine publication bias:
 sig_fun <- significance_funnel( yi = MA_data_average_imp$hedge_g,
