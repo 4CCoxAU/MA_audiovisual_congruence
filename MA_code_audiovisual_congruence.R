@@ -364,17 +364,25 @@ MA_data_average_imp <- MA_data %>%
   mutate(se_hedge_g = c(original_values, mean_mi$value)) %>%
   relocate(se_hedge_g, .before = n_1)
 
-#calculate effect size variance for each study:
-MA_data_average_imp <- MA_data_average_imp %>%
-  mutate(vi = (se_hedge_g * sqrt(n_1))^2) %>%
-  relocate(vi, .before = se_hedge_g)
+#calculate severity of publication bias needed to "explain away" the results:
+svalue <- svalue( yi = MA_data_average_imp$hedge_g,
+                  vi = MA_data_average_imp$se_hedge_g^2,
+                  q=0,
+                  clustervar = MA_data_average_imp$study_ID,
+                  model = "robust",
+                  alpha.select = 0.05,
+                  eta.grid.hi = 5,
+                  favor.positive = TRUE,
+                  CI.level = 0.95,
+                  small = TRUE,
+                  return.worst.meta = TRUE)
 
 #make sensitivity plot, as in Mathur & VanderWeele (2020):
-eta.list = as.list(rev( seq(1,50,1) ) )
+eta.list = as.list(rev( seq(1,80,1) ) )
 res.list = lapply( eta.list, function(x) {
   cat("\n Working on eta = ", x)
   return( corrected_meta( yi = MA_data_average_imp$hedge_g,
-                          vi = MA_data_average_imp$vi,
+                          vi = MA_data_average_imp$se_hedge_g^2,
                           eta = x,
                           model = "robust",
                           favor.positive = TRUE,
@@ -396,38 +404,24 @@ sensitivity_plot + ggtitle("Sensitivity Analysis for Effect Size Estimate") +
 
 #create a significance funnel plot to examine publication bias:
 sig_fun <- significance_funnel( yi = MA_data_average_imp$hedge_g,
-                                vi = MA_data_average_imp$se_hedge_g,
+                                vi = MA_data_average_imp$se_hedge_g^2,
                                 xmin = min(MA_data_average_imp$hedge_g),
                                 xmax = max(MA_data_average_imp$hedge_g),
-                                ymin = min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05,
-                                ymax = max(sqrt(MA_data_average_imp$se_hedge_g)),
+                                ymin = min(sqrt(MA_data_average_imp$se_hedge_g^2)) - 0.04,
+                                ymax = max(sqrt(MA_data_average_imp$se_hedge_g^2)),
                                 xlab = "Point Estimate of Effect Size",
-                                ylab = "Standard Error of Effect Size",
+                                ylab = "Sqaured Standard Error of Effect Size",
                                 favor.positive = T,
                                 alpha.select = 0.05)
 sig_fun +
   ggtitle("Significance Funnel Plot of Meta-Analytic Studies") +
   theme(plot.title = element_text(hjust = 0.5, face="bold", size=20)) +
-  geom_point(aes(x=0.349, y=min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05), size = 8, shape = 18, colour="black", show.legend = F) +
-  geom_point(aes(x=0.237, y=min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05), size = 8, shape = 18, colour="lightsteelblue4", show.legend = F) +
-  geom_hline(yintercept = min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05, linetype = "dashed")
-
-
-#calculate severity of publication bias needed to "explain away" the results:
-svalue( yi = MA_data_average_imp$hedge_g,
-        vi = MA_data_average_imp$se_hedge_g,
-        q=0,
-        clustervar = MA_data_average_imp$study_ID,
-        model = "robust",
-        alpha.select = 0.05,
-        eta.grid.hi = 5,
-        favor.positive = TRUE,
-        CI.level = 0.95,
-        small = TRUE,
-        return.worst.meta = TRUE)
+  geom_point(aes(x=0.349, y=min(sqrt(MA_data_average_imp$se_hedge_g^2)) - 0.04), size = 8, shape = 18, colour="black", show.legend = F) +
+  geom_point(aes(x=svalue$meta.worst$b.r, y=min(sqrt(MA_data_average_imp$se_hedge_g^2)) - 0.04), size = 8, shape = 18, colour="lightsteelblue4", show.legend = F) +
+  geom_hline(yintercept = min(sqrt(MA_data_average_imp$se_hedge_g^2)) - 0.04, linetype = "dashed")
 
 #power calculations:
-pwr.t.test(n = , d = 0.349, sig.level = 0.05, power = 0.80, type = "one.sample")
+pwr.t.test(n = , d = svalue$meta.worst$b.r, sig.level = 0.05, power = 0.80, type = "one.sample")
 
 
 #plot of posterior samples for pooled effect size:
