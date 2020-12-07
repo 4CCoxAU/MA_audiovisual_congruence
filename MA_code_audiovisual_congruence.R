@@ -294,6 +294,34 @@ c_eff_plot + scale_colour_manual(name = 'Test Language',
 
 summary(brm.student_interaction)
 
+#Model 6:
+brm.student_interaction_stimuli_age <- 
+  brm_multiple(data = MA_data_imp, family = student,
+               hedge_g|se(se_hedge_g) ~ 1 + mean_age_1*stimuli_type + (1|study_ID/expt_condition),
+               prior = priors2,
+               sample_prior = T,
+               file = "brm.student_interaction_comp_age",
+               iter = 20000, 
+               warmup = 2000,
+               chains = 2,
+               cores = 2,
+               control = list(adapt_delta = 0.99))
+
+Posterior <- posterior_samples(brm.student_interaction_stimuli_age, pars = c(
+  "prior_Intercept",
+  "b_Intercept",
+  "prior_sd_study_ID",
+  "sd_study_ID__Intercept",
+  "prior_sd_study_ID:expt_condition",
+  "sd_study_ID:expt_condition__Intercept",
+  "sigma",
+  "prior_nu",
+  "nu"
+))
+
+plot(conditional_effects(brm.student_interaction_stimuli_age))
+summary(brm.student_interaction_stimuli_age)
+
 #Check fits and model comparison:
 brm.student_baseline <- add_criterion(brm.student_baseline, criterion="loo")
 brm.student_age <- add_criterion(brm.student_age, criterion = "loo")
@@ -301,6 +329,7 @@ brm.student_age_mo <- add_criterion(brm.student_age_mo, criterion = "loo")
 brm.student_lang <- add_criterion(brm.student_lang, criterion="loo")
 brm.student_stimuli <- add_criterion(brm.student_stimuli, criterion="loo")
 brm.student_interaction <- add_criterion(brm.student_interaction, criterion="loo")
+brm.student_interaction_stimuli_age <- add_criterion(brm.student_interaction_stimuli_age, criterion="loo")
 
 #loo model of baseline:
 loo_model <- loo(brm.student_baseline)
@@ -316,6 +345,7 @@ loo_model_weights(brm.student_baseline, brm.student_age)
 loo_model_weights(brm.student_baseline, brm.student_lang)
 loo_model_weights(brm.student_baseline, brm.student_stimuli)
 loo_model_weights(brm.student_baseline, brm.student_interaction)
+loo_model_weights(brm.student_baseline, brm.student_interaction_stimuli_age)
 
 #Create forest plot:
 
