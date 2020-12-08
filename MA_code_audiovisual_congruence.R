@@ -366,7 +366,7 @@ MA_data_average_imp <- MA_data %>%
 
 #calculate effect size variance for each study:
 MA_data_average_imp <- MA_data_average_imp %>%
-  mutate(vi = (se_hedge_g * sqrt(n_1))^2) %>%
+  mutate(vi = ((se_hedge_g )^2)) %>%
   relocate(vi, .before = se_hedge_g)
 
 #make sensitivity plot, as in Mathur & VanderWeele (2020):
@@ -396,7 +396,7 @@ sensitivity_plot + ggtitle("Sensitivity Analysis for Effect Size Estimate") +
 
 #create a significance funnel plot to examine publication bias:
 sig_fun <- significance_funnel( yi = MA_data_average_imp$hedge_g,
-                                vi = MA_data_average_imp$se_hedge_g,
+                                vi = MA_data_average_imp$vi,
                                 xmin = min(MA_data_average_imp$hedge_g),
                                 xmax = max(MA_data_average_imp$hedge_g),
                                 ymin = min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05,
@@ -408,14 +408,14 @@ sig_fun <- significance_funnel( yi = MA_data_average_imp$hedge_g,
 sig_fun +
   ggtitle("Significance Funnel Plot of Meta-Analytic Studies") +
   theme(plot.title = element_text(hjust = 0.5, face="bold", size=20)) +
-  geom_point(aes(x=0.349, y=min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05), size = 8, shape = 18, colour="black", show.legend = F) +
-  geom_point(aes(x=0.237, y=min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05), size = 8, shape = 18, colour="lightsteelblue4", show.legend = F) +
-  geom_hline(yintercept = min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05, linetype = "dashed")
+  geom_point(aes(x=0.349, y=min(sqrt(MA_data_average_imp$vi)) - 0.05), size = 8, shape = 18, colour="black", show.legend = F) +
+  geom_point(aes(x=0.237, y=min(sqrt(MA_data_average_imp$vi)) - 0.05), size = 8, shape = 18, colour="lightsteelblue4", show.legend = F) +
+  geom_hline(yintercept = min(sqrt(MA_data_average_imp$vi)) - 0.05, linetype = "dashed")
 
 
 #calculate severity of publication bias needed to "explain away" the results:
 svalue( yi = MA_data_average_imp$hedge_g,
-        vi = MA_data_average_imp$se_hedge_g,
+        vi = MA_data_average_imp$vi,
         q=0,
         clustervar = MA_data_average_imp$study_ID,
         model = "robust",
