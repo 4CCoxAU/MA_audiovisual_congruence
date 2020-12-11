@@ -88,6 +88,8 @@ brm.student_baseline <-
     warmup = 2000,
     cores = 2,
     chains = 2,
+    #backend = "cmdstanr",
+    #threads = threading(2),
     control = list(
       adapt_delta = 0.99,
       max_treedepth = 20 ))
@@ -479,3 +481,55 @@ ggplot(aes(x = smd), data = post.samples) +
   theme(plot.title = element_text(hjust = 0.5, face="bold", size=14)) +
   xlab('Effect Size') +
   ylab('Density')
+
+
+## Plot for the unique ID
+Preds <- posterior_linpred(brm.student_baseline)
+MA_data$unique <- NA
+for (i in unique(MA_data$study_ID)){
+  MA_data$unique[MA_data$study_ID==i] <- seq(nrow(MA_data[MA_data$study_ID==i,]))
+}
+
+MA_data <- MA_data %>% mutate(
+  ID = paste0(study_ID,"_",unique)
+)
+
+d_pos <- data.frame(ID = NA, estimate = NA)
+
+for (i in seq(length(unique(MA_data$ID)))){
+  temp <- data.frame(ID = MA_data$ID[i], estimate = Preds[,i])
+  d_pos <- rbind(d_pos, temp)
+}
+
+d_pos <- subset(d_pos, !is.na(ID))
+
+pooledEffect <- spread_draws(brm.student_baseline, b_Intercept) %>% 
+  mutate(ID = "Pooled Effect") %>%
+  rename(estimate = b_Intercept) %>%
+  select(ID, estimate)
+
+d_pos <- rbind(d_pos, pooledEffect)
+
+d_pos <- d_pos %>% mutate(
+  ID = as.factor(ID),
+  ID = relevel(ID, "Pooled Effect", after = Inf))
+
+forest.data.summary <- group_by(d_pos, ID) %>% 
+  mean_qi(estimate)
+
+
+
+ggplot(aes(estimate, ID), 
+       data = d_pos) +
+  geom_vline(xintercept = 0, color = "black", size = 0.3, linetype="dotted") +
+  geom_density_ridges(fill = "lightsteelblue4", rel_min_height = 0.03, col = NA, scale = 0.9,
+                      alpha = 0.8, linetype = "dotted", size = 0.5) +
+  geom_point(data=forest.data.summary, color='black', shape=18, size=2) +
+  geom_errorbarh(data=forest.data.summary, aes(xmax = .upper, xmin = .lower, height = 0.1)) +
+  geom_text(data = mutate_if(forest.data.summary, is.numeric, round, 3),
+            aes(label = glue("{estimate} [{.lower}, {.upper}]"), x = Inf), hjust = "inward", size = 3) +
+  labs(x = "placeholder", 
+       y = element_blank()) +
+  scale_x_continuous("Hedges' g", limits = c(-0.75, 2.2)) +
+  ggtitle("Forest Plot of Estimated Effect Sizes for Meta-Analytic Studies") +
+  theme_classic()
