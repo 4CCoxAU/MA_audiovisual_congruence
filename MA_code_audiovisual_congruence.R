@@ -278,7 +278,7 @@ Posterior <- posterior_samples(brm.student_interaction, pars = c(
 
 pp_check(brm.student_interaction)
 c_eff <- conditional_effects(brm.student_interaction, effects = 'mean_age_1:test_lang', spaghetti = T, nsamples = 150)
-c_eff_plot <- plot(c_eff, mean = FALSE, points = T, point_args = c(alpha = 1, size = 3, show.legend = FALSE), spaghetti_args = c(alpha = 0.001, size = 0.2), plot = FALSE)[[1]] +
+c_eff_plot <- plot(c_eff, mean = FALSE, points = T, point_args = c(alpha = 1, size = 3, show.legend = FALSE), spaghetti_args = c(alpha = 0.00001, size = 0.1), plot = FALSE)[[1]] +
   xlab("Mean Age in Days") +
   ylab("Hedges' g") +
   xlim(c(0, 400)) +
@@ -294,6 +294,34 @@ c_eff_plot + scale_colour_manual(name = 'Test Language',
 
 summary(brm.student_interaction)
 
+#Model 6:
+brm.student_interaction_stimuli_age <- 
+  brm_multiple(data = MA_data_imp, family = student,
+               hedge_g|se(se_hedge_g) ~ 1 + mean_age_1*stimuli_type + (1|study_ID/expt_condition),
+               prior = priors2,
+               sample_prior = T,
+               file = "brm.student_interaction_comp_age",
+               iter = 20000, 
+               warmup = 2000,
+               chains = 2,
+               cores = 2,
+               control = list(adapt_delta = 0.99))
+
+Posterior <- posterior_samples(brm.student_interaction_stimuli_age, pars = c(
+  "prior_Intercept",
+  "b_Intercept",
+  "prior_sd_study_ID",
+  "sd_study_ID__Intercept",
+  "prior_sd_study_ID:expt_condition",
+  "sd_study_ID:expt_condition__Intercept",
+  "sigma",
+  "prior_nu",
+  "nu"
+))
+
+plot(conditional_effects(brm.student_interaction_stimuli_age))
+summary(brm.student_interaction_stimuli_age)
+
 #Check fits and model comparison:
 brm.student_baseline <- add_criterion(brm.student_baseline, criterion="loo")
 brm.student_age <- add_criterion(brm.student_age, criterion = "loo")
@@ -301,6 +329,7 @@ brm.student_age_mo <- add_criterion(brm.student_age_mo, criterion = "loo")
 brm.student_lang <- add_criterion(brm.student_lang, criterion="loo")
 brm.student_stimuli <- add_criterion(brm.student_stimuli, criterion="loo")
 brm.student_interaction <- add_criterion(brm.student_interaction, criterion="loo")
+brm.student_interaction_stimuli_age <- add_criterion(brm.student_interaction_stimuli_age, criterion="loo")
 
 #loo model of baseline:
 loo_model <- loo(brm.student_baseline)
@@ -316,6 +345,7 @@ loo_model_weights(brm.student_baseline, brm.student_age)
 loo_model_weights(brm.student_baseline, brm.student_lang)
 loo_model_weights(brm.student_baseline, brm.student_stimuli)
 loo_model_weights(brm.student_baseline, brm.student_interaction)
+loo_model_weights(brm.student_baseline, brm.student_interaction_stimuli_age)
 
 #Create forest plot:
 
@@ -360,17 +390,30 @@ mean_mi <- rowMeans(all_data_imputations)
 mean_mi <- as_tibble(mean_mi)
 #combine original with imputed sd values:
 original_values <- na.omit(MA_data$se_hedge_g)
+
 MA_data_average_imp <- MA_data %>%
   mutate(se_hedge_g = c(original_values, mean_mi$value)) %>%
   relocate(se_hedge_g, .before = n_1)
 
-#calculate effect size variance for each study:
 MA_data_average_imp <- MA_data_average_imp %>%
   mutate(vi = ((se_hedge_g )^2)) %>%
   relocate(vi, .before = se_hedge_g)
 
+#calculate severity of publication bias needed to "explain away" the results:
+svalue <- svalue( yi = MA_data_average_imp$hedge_g,
+                  vi = MA_data_average_imp$vi,
+                  q=0,
+                  clustervar = MA_data_average_imp$study_ID,
+                  model = "robust",
+                  alpha.select = 0.05,
+                  eta.grid.hi = 5,
+                  favor.positive = TRUE,
+                  CI.level = 0.95,
+                  small = TRUE,
+                  return.worst.meta = TRUE)
+
 #make sensitivity plot, as in Mathur & VanderWeele (2020):
-eta.list = as.list(rev( seq(1,50,1) ) )
+eta.list = as.list( c(150, rev( seq(1,100,1) ) ) )
 res.list = lapply( eta.list, function(x) {
   cat("\n Working on eta = ", x)
   return( corrected_meta( yi = MA_data_average_imp$hedge_g,
@@ -384,14 +427,18 @@ res.list = lapply( eta.list, function(x) {
 # put results for each eta in a dataframe and plot:
 res.df = as.data.frame( do.call( "rbind", res.list ) )
 #plot the results:
-sensitivity_plot <- ggplot( data = res.df, aes( x = eta, y = est ) ) + 
-  geom_ribbon( data = res.df, aes( x = eta, ymin = lo, ymax = hi ), fill = "gray" ) +
-  geom_line( lwd = 1 ) +
-  xlab( 'Publication Probability for Affirmative Studies') +
-  ylab('Effect Size Esimate' ) +
+Sensitivity_analysis <- ggplot( data = res.df, aes( x = eta, y = est ) ) + 
+  geom_ribbon( data = res.df, aes( x = eta, ymin = lo, ymax = hi ), fill = "skyblue4" ) +
+  geom_line( lwd = 1.5) +
+  xlab( 'Publication Probability for Significant Studies') +
+  ylab('Effect Size Esimate' ) + 
+  geom_hline(yintercept = 0.0, linetype = "dotted", color = "orange", size = 0.7) +
+  geom_hline(yintercept = svalue$meta.worst$b.r, linetype = "dashed", color = "red", size = 0.7) +
+  scale_y_continuous(breaks=c(-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6)) +
+  scale_x_continuous(breaks=c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150)) +
   theme_classic()
 
-sensitivity_plot + ggtitle("Sensitivity Analysis for Effect Size Estimate") +
+Sensitivity_analysis + ggtitle("Sensitivity Analysis for Effect Size Estimate") +
   theme(plot.title = element_text(hjust = 0.5, face="bold", size=20))
 
 #create a significance funnel plot to examine publication bias:
@@ -399,10 +446,10 @@ sig_fun <- significance_funnel( yi = MA_data_average_imp$hedge_g,
                                 vi = MA_data_average_imp$vi,
                                 xmin = min(MA_data_average_imp$hedge_g),
                                 xmax = max(MA_data_average_imp$hedge_g),
-                                ymin = min(sqrt(MA_data_average_imp$se_hedge_g)) - 0.05,
-                                ymax = max(sqrt(MA_data_average_imp$se_hedge_g)),
+                                ymin = min(sqrt(MA_data_average_imp$se_hedge_g^2)) - 0.04,
+                                ymax = max(sqrt(MA_data_average_imp$se_hedge_g^2)),
                                 xlab = "Point Estimate of Effect Size",
-                                ylab = "Standard Error of Effect Size",
+                                ylab = "Sqaured Standard Error of Effect Size",
                                 favor.positive = T,
                                 alpha.select = 0.05)
 sig_fun +
@@ -412,22 +459,8 @@ sig_fun +
   geom_point(aes(x=0.237, y=min(sqrt(MA_data_average_imp$vi)) - 0.05), size = 8, shape = 18, colour="lightsteelblue4", show.legend = F) +
   geom_hline(yintercept = min(sqrt(MA_data_average_imp$vi)) - 0.05, linetype = "dashed")
 
-
-#calculate severity of publication bias needed to "explain away" the results:
-svalue( yi = MA_data_average_imp$hedge_g,
-        vi = MA_data_average_imp$vi,
-        q=0,
-        clustervar = MA_data_average_imp$study_ID,
-        model = "robust",
-        alpha.select = 0.05,
-        eta.grid.hi = 5,
-        favor.positive = TRUE,
-        CI.level = 0.95,
-        small = TRUE,
-        return.worst.meta = TRUE)
-
 #power calculations:
-pwr.t.test(n = , d = 0.349, sig.level = 0.05, power = 0.80, type = "one.sample")
+pwr.t.test(n = , d = svalue$meta.worst$b.r, sig.level = 0.05, power = 0.80, type = "one.sample")
 
 
 #plot of posterior samples for pooled effect size:
